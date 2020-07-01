@@ -17,13 +17,15 @@
 namespace binary {
 #include "../../misc/bdt.h"
 }
-namespace multiclass {
-#include "func_mc.h"
-}
+//namespace multiclass {
+//#include "func_mc.h"
+//}
 
 using namespace std;
 
 int ScanChain(TChain *ch, TString options="", TString outputdir="outputs/"){
+
+    TH1F * h_mbb = new TH1F("mbb", "mbb", 100, 0, 500);
 
     ana_t analysis = FTANA;
 
@@ -83,7 +85,7 @@ int ScanChain(TChain *ch, TString options="", TString outputdir="outputs/"){
     reader.AddSpectator("SR",         &tree_SR);
     reader.AddSpectator("br",         &tree_br);
     // reader.BookMVA("BDT","../../yields/TMVAClassification_BDT_19vars.xml");
-    reader.BookMVA("BDT","TMVAClassification_BDT.weights.xml");
+    //reader.BookMVA("BDT","TMVAClassification_BDT.weights.xml");
 
     TString proc(ch->GetTitle());
 
@@ -157,6 +159,8 @@ int ScanChain(TChain *ch, TString options="", TString outputdir="outputs/"){
         else if (filename.Contains("2017")) tree_year = 2017;
         else if (filename.Contains("2018")) tree_year = 2018;
 
+        cout << "filename: " << filename << endl;
+
         float min_pt_fake = -1;
         if (tree_year >= 2017) min_pt_fake = 18.;
         float lumi = getLumi(tree_year);
@@ -182,9 +186,9 @@ int ScanChain(TChain *ch, TString options="", TString outputdir="outputs/"){
 
             if (!ss::is_real_data()) {
                 weight *= getTruePUw(tree_year, ss::trueNumInt()[0]);
-                if (ss::lep1_passes_id()) weight *= leptonScaleFactor(tree_year, ss::lep1_id(), ss::lep1_coneCorrPt(), ss::lep1_p4().eta(), ss::ht());
-                if (ss::lep2_passes_id()) weight *= leptonScaleFactor(tree_year, ss::lep2_id(), ss::lep2_coneCorrPt(), ss::lep2_p4().eta(), ss::ht());
-                if (ss::lep3_passes_id()) weight *= leptonScaleFactor(tree_year, ss::lep3_id(), ss::lep3_coneCorrPt(), ss::lep3_p4().eta(), ss::ht());
+                if (ss::lep1_passes_id()) weight *= leptonScaleFactor(tree_year, ss::lep1_id(), ss::lep1_coneCorrPt(), ss::lep1_p4().eta(), ss::ht(), analysis);
+                if (ss::lep2_passes_id()) weight *= leptonScaleFactor(tree_year, ss::lep2_id(), ss::lep2_coneCorrPt(), ss::lep2_p4().eta(), ss::ht(), analysis);
+                if (ss::lep3_passes_id()) weight *= leptonScaleFactor(tree_year, ss::lep3_id(), ss::lep3_coneCorrPt(), ss::lep3_p4().eta(), ss::ht(), analysis);
                 weight *= ss::weight_btagsf();
                 if (tree_year == 2016) weight *= ss::prefire2016_sf();
                 if (tree_year == 2017) weight *= ss::prefire2017_sf();
@@ -196,11 +200,11 @@ int ScanChain(TChain *ch, TString options="", TString outputdir="outputs/"){
                 if (ss::hyp_class() != 4) continue;
                 float ff = 0.;
                 if (abs(ss::lep1_id()) == 11) {
-                    float flr = flipRate(tree_year, ss::lep1_p4().pt(), ss::lep1_p4().eta());
+                    float flr = flipRate(tree_year, ss::lep1_p4().pt(), ss::lep1_p4().eta(), analysis);
                     ff += (flr/(1-flr));
                 }
                 if (abs(ss::lep2_id()) == 11) {
-                    float flr = flipRate(tree_year, ss::lep2_p4().pt(), ss::lep2_p4().eta());
+                    float flr = flipRate(tree_year, ss::lep2_p4().pt(), ss::lep2_p4().eta(), analysis);
                     ff += (flr/(1-flr));
                 }
                 weight *= ff;

@@ -499,6 +499,12 @@ void babyMaker::MakeBabyNtuple(const char* output_name, bool isFastsim, int iSig
   // for tttt
   BabyTree->Branch("bjet_type"       , &bjet_type       );
   BabyTree->Branch("jet_type"       , &jet_type       );
+  BabyTree->Branch("jet_cat"       , &jet_cat       );
+  BabyTree->Branch("jet_matchedGenIndex"       , &jet_matchedGenIndex       );
+  BabyTree->Branch("jet_matchedGenId"       , &jet_matchedGenId       );
+  BabyTree->Branch("jet_matchedGenMId"       , &jet_matchedGenMId       );
+  BabyTree->Branch("jet_matchedDr"       , &jet_matchedDr       );
+  BabyTree->Branch("jet_matchedPtDiff"       , &jet_matchedPtDiff       );
   BabyTree->Branch("ndrlt0p4"       , &ndrlt0p4       );
   BabyTree->Branch("gengood"       , &gengood       );
   BabyTree->Branch("nleptonic"       , &nleptonic       );
@@ -1161,6 +1167,12 @@ void babyMaker::InitBabyNtuple(){
     genht30 = 0;
     bjet_type.clear();
     jet_type.clear();
+    jet_cat.clear();
+    jet_matchedGenIndex.clear();
+    jet_matchedGenId.clear();
+    jet_matchedGenMId.clear();
+    jet_matchedDr.clear();
+    jet_matchedPtDiff.clear();
     ndrlt0p4 = 0;
     gengood = 0;
     nleptonic = 0;
@@ -1983,6 +1995,78 @@ csErr_t babyMaker::ProcessBaby(string filename_in, FactorizedJetCorrector* jetCo
   }
 
 
+  // add an index showing if it's from top or Higgs or W
+  if (!is_real_data) {  
+    for (unsigned int i = 0; i < jet_results.first.size(); i++) {
+        // loop over jet
+        float minDrMatch = 0.4;
+        int bestindex = -1;
+        int bestgenid = 9999;
+        int bestgenmid = 9999;
+        bool matchgenjet = false;
+        float matchPtDiff = -999;
+        auto jetp4 = jet_results.first.at(i).p4();
+        auto jet = jet_results.first.at(i);
+        for (unsigned int igen = 0; igen < tas::genps_p4().size(); igen++){
+            if (std::find(jet_matchedGenIndex.begin(), jet_matchedGenIndex.end(), igen) != jet_matchedGenIndex.end()) continue;
+            int stat = tas::genps_status()[igen];
+            int id = tas::genps_id()[igen];
+            int mid = tas::genps_id_mother()[igen];
+            if (abs(id) > 5) continue; // only consider quark
+            if (stat > 24 || stat < 21) continue; // only consider hard process particle
+            auto genp4 = tas::genps_p4()[igen];
+            float dR = ROOT::Math::VectorUtil::DeltaR(genp4,jetp4);
+            if (dR < minDrMatch) {
+                minDrMatch = dR;
+                bestindex = igen;
+                bestgenid = id;
+                bestgenmid = mid; // check definition of momID
+                matchPtDiff = genp4.pt() - jetp4.pt(); 
+            }
+        }
+        jet_matchedGenIndex.push_back(bestindex);
+        jet_matchedGenId.push_back(bestgenid);
+        jet_matchedGenMId.push_back(bestgenmid);
+        jet_matchedDr.push_back(minDrMatch);
+        jet_matchedPtDiff.push_back(matchPtDiff);
+        for (unsigned int igj = 0; igj < genjets_p4NoMuNoNu().size(); igj++){
+            auto genjetp4 = tas::genjets_p4NoMuNoNu()[igj];
+            float dR = ROOT::Math::VectorUtil::DeltaR(genjetp4,jetp4);
+            if (dR < 0.4) { matchgenjet = true; break; }
+        }
+        if (jet.isBtag()) {
+            if (abs(bestgenid) == 5) {
+                if (bestgenmid == 25) jet_cat.push_back(0); 
+                if ((abs(bestgenmid)) == 6) jet_cat.push_back(1); 
+                if (bestgenmid == 22 || bestgenmid == 23) jet_cat.push_back(2); 
+            } else if (abs(bestgenid) < 5 && abs(bestgenmid) == 24) {
+                jet_cat.push_back(3);
+            } else if (abs(bestgenid) < 5 && abs(bestgenmid) != 24) {
+                jet_cat.push_back(4);
+            } else {jet_cat.push_back(5);}
+                
+        } else {
+            if (abs(bestgenid) == 5) {
+                jet_cat.push_back(6);
+            } else if (abs(bestgenid) < 5) {
+                jet_cat.push_back(7);
+            } else if (matchgenjet) {
+                jet_cat.push_back(8);
+            } else {jet_cat.push_back(9);}
+        } 
+
+        //cout << "-----" << endl;
+        //cout << "matched: " << ((minDrMatch < 0.4) ? "Yes" : "No" )<< endl; 
+        //cout << "minDrMatch: " << minDrMatch << endl;
+        //cout << "bestindex: " << bestindex << endl;
+        //cout << "bestgenid: " << bestgenid << endl;
+        //cout << "bestgenmid: " <<  bestgenmid << endl; // check definition of momID
+        //cout << "matchPtDiff: " << matchPtDiff << endl; 
+        //cout << "jet_cat: " << jet_cat.back() << endl;
+        //cout << "-----" << endl;
+    }
+  }  
+
   for (unsigned int i = 0; i < jet_results.first.size(); i++) jets_JEC.push_back(jet_results.first.at(i).jec());
   for (unsigned int i = 0; i < jet_results.first.size(); i++) jets_undoJEC.push_back(jet_results.first.at(i).undo_jec());
 
@@ -2363,6 +2447,7 @@ csErr_t babyMaker::ProcessBaby(string filename_in, FactorizedJetCorrector* jetCo
       if (nisrMatch == 5) { weight_isr_dy = 1.11; weight_isr_tt = 0.74; }
       if (nisrMatch == 6) { weight_isr_dy = 1.22; weight_isr_tt = 0.73; }
       if (nisrMatch == 7) { weight_isr_dy = 1.34; weight_isr_tt = 0.56; }
+
   }
 
   //Save Most jets

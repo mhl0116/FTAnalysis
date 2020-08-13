@@ -232,6 +232,12 @@ class babyMaker {
     // for TTTT
     vector <int> bjet_type;
     vector <int> jet_type;
+    vector <int> jet_cat;
+    vector<int> jet_matchedGenIndex;
+    vector<int> jet_matchedGenId;
+    vector<int> jet_matchedGenMId;
+    vector<float> jet_matchedDr;
+    vector<float> jet_matchedPtDiff;
     int ndrlt0p4;
     bool gengood;
     int nleptonic;
